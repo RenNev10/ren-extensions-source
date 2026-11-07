@@ -63,7 +63,7 @@ abstract class MegaBanana : KeiSource() {
             if (!item.readerReady) return@mapNotNull null
 
             SManga.create().apply {
-                url = item.id.toString()
+                url = "$apiUrl/reader/${item.id}".toHttpUrl()
                 title = item.title
                 thumbnail_url = item.thumbnail
                 description = item.excerpt
@@ -90,10 +90,10 @@ abstract class MegaBanana : KeiSource() {
         fetchDetails: Boolean,
         fetchChapters: Boolean,
     ): SMangaUpdate {
-        val mangaId = manga.url.toInt()
+        val mangaId = manga.url.pathSegments.last()
 
         val reader = client.get(
-            "$apiUrl/reader/$mangaId",
+            manga.url,
             Fetch.XHR,
         ).parseAs<ReaderDto>()
 
@@ -101,11 +101,7 @@ abstract class MegaBanana : KeiSource() {
 
         val chapterList = reader.chapters.map { chapter ->
             SChapter.create().apply {
-                url = baseUrl.toHttpUrl().newBuilder()
-                    .addPathSegment("internal")
-                    .addPathSegment(mangaId.toString())
-                    .addPathSegment(chapter.number)
-                    .build()
+                url = "$mangaId/${chapter.number}"
                 name = chapter.title
                 memo = buildJsonObject {
                     put("web_url", getMangaUrl(manga))
@@ -117,7 +113,8 @@ abstract class MegaBanana : KeiSource() {
     }
 
     override fun getChapterUrl(chapter: SChapter): String {
-        val chapterNumber = chapter.url.pathSegments.last()
+        val parts = chapter.url.split("/")
+        val chapterNumber = parts.last()
         val webUrl = chapter.memo["web_url"]?.jsonPrimitive?.contentOrNull
             ?: baseUrl
 
@@ -130,9 +127,9 @@ abstract class MegaBanana : KeiSource() {
     override suspend fun getPageList(
         chapter: SChapter,
     ): List<Page> {
-        val parts = chapter.url.pathSegments
-        val mangaId = parts[parts.size - 2]
-        val chapterNumber = parts.last()
+        val parts = chapter.url.split("/")
+        val mangaId = parts[0]
+        val chapterNumber = parts[1]
 
         val readerUrl = "$apiUrl/reader/$mangaId"
             .toHttpUrl()
