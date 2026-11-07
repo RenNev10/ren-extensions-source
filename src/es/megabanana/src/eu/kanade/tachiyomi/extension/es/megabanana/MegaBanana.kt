@@ -15,7 +15,7 @@ import keiyoushi.utils.parseAs
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.content
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
@@ -80,7 +80,7 @@ abstract class MegaBanana : KeiSource() {
     }
 
     override fun getMangaUrl(manga: SManga): String {
-        return manga.memo["web_url"]?.jsonPrimitive?.content
+        return manga.memo["web_url"]?.jsonPrimitive?.contentOrNull
             ?: baseUrl
     }
 
@@ -99,14 +99,16 @@ abstract class MegaBanana : KeiSource() {
 
         manga.title = reader.title
 
-        val webUrl = getMangaUrl(manga)
-
         val chapterList = reader.chapters.map { chapter ->
             SChapter.create().apply {
-                url = "$mangaId/${chapter.number}"
+                url = baseUrl.toHttpUrl().newBuilder()
+                    .addPathSegment("internal")
+                    .addPathSegment(mangaId.toString())
+                    .addPathSegment(chapter.number)
+                    .build()
                 name = chapter.title
                 memo = buildJsonObject {
-                    put("web_url", webUrl)
+                    put("web_url", getMangaUrl(manga))
                 }
             }
         }.reversed()
@@ -115,12 +117,12 @@ abstract class MegaBanana : KeiSource() {
     }
 
     override fun getChapterUrl(chapter: SChapter): String {
-        val parts = chapter.url.split("/")
-        val webUrl = chapter.memo["web_url"]?.jsonPrimitive?.content
+        val chapterNumber = chapter.url.pathSegments.last()
+        val webUrl = chapter.memo["web_url"]?.jsonPrimitive?.contentOrNull
             ?: baseUrl
 
         return webUrl.toHttpUrl().newBuilder()
-            .addQueryParameter("capitulo", parts[1])
+            .addQueryParameter("capitulo", chapterNumber)
             .build()
             .toString()
     }
@@ -128,9 +130,9 @@ abstract class MegaBanana : KeiSource() {
     override suspend fun getPageList(
         chapter: SChapter,
     ): List<Page> {
-        val parts = chapter.url.split("/")
-        val mangaId = parts[0]
-        val chapterNumber = parts[1]
+        val parts = chapter.url.pathSegments
+        val mangaId = parts[parts.size - 2]
+        val chapterNumber = parts.last()
 
         val readerUrl = "$apiUrl/reader/$mangaId"
             .toHttpUrl()
