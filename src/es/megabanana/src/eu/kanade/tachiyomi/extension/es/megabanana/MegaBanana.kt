@@ -1,6 +1,7 @@
 
 package eu.kanade.tachiyomi.extension.es.megabanana
 
+import eu.kanade.tachiyomi.source.model.Filter
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
@@ -13,6 +14,7 @@ import keiyoushi.network.get
 import keiyoushi.source.KeiSource
 import keiyoushi.utils.parseAs
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
@@ -25,12 +27,16 @@ abstract class MegaBanana : KeiSource() {
     private val apiUrl
         get() = "$baseUrl/wp-json/megabanana/v1"
 
+    override fun getFilterList(data: JsonElement?) = FilterList(
+        PublisherFilter(),
+    )
+
     override suspend fun getPopularManga(page: Int): MangasPage {
-        return fetchCatalog(page, "")
+        return fetchCatalog(page, "", "comics")
     }
 
     override suspend fun getLatestUpdates(page: Int): MangasPage {
-        return fetchCatalog(page, "")
+        return fetchCatalog(page, "", "comics")
     }
 
     override suspend fun getSearchMangaList(
@@ -38,17 +44,23 @@ abstract class MegaBanana : KeiSource() {
         query: String,
         filters: FilterList,
     ): MangasPage {
-        return fetchCatalog(page, query)
+        val category = filters
+            .filterIsInstance<PublisherFilter>()
+            .firstOrNull()
+            ?.category ?: "comics"
+
+        return fetchCatalog(page, query, category)
     }
 
     private suspend fun fetchCatalog(
         page: Int,
         query: String,
+        category: String,
     ): MangasPage {
         val url = "$apiUrl/catalog".toHttpUrl().newBuilder()
             .addQueryParameter("page", page.toString())
             .addQueryParameter("per_page", "30")
-            .addQueryParameter("category", "comics")
+            .addQueryParameter("category", category)
             .apply {
                 if (query.isNotBlank()) {
                     addQueryParameter("search", query)
@@ -148,6 +160,38 @@ abstract class MegaBanana : KeiSource() {
                 imageUrl = imageUrl,
             )
         }
+    }
+}
+
+private class PublisherFilter : Filter.Select<String>(
+    "Editorial",
+    arrayOf(
+        "Todas",
+        "Marvel",
+        "DC",
+        "Image",
+        "IDW",
+        "Dark Horse",
+        "Vertigo",
+        "Dynamite",
+        "Independientes",
+    ),
+) {
+    val category: String
+        get() = categories[state]
+
+    companion object {
+        private val categories = arrayOf(
+            "comics",
+            "marvel",
+            "dc",
+            "image",
+            "idw",
+            "dark-horse",
+            "vertigo",
+            "dynamite",
+            "independientes",
+        )
     }
 }
 
