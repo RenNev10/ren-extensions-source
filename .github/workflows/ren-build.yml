@@ -1,1 +1,43 @@
 
+name: Build MegaBanana
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/es/megabanana/**'
+      - '.github/workflows/ren-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compile MegaBanana
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build extension
+        run: ./gradlew :src:es:megabanana:assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: megabanana-apk
+          path: src/es/megabanana/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
