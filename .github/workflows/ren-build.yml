@@ -43,4 +43,3 @@ jobs:
           name: megabanana-apk
           path: src/es/megabanana/build/outputs/apk/release/*.apk
           if-no-files-found: error
-
