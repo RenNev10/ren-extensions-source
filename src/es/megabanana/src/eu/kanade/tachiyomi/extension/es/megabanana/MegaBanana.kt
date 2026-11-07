@@ -14,8 +14,8 @@ import keiyoushi.source.KeiSource
 import keiyoushi.utils.parseAs
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import okhttp3.HttpUrl.Companion.toHttpUrl
 
@@ -63,7 +63,7 @@ abstract class MegaBanana : KeiSource() {
             if (!item.readerReady) return@mapNotNull null
 
             SManga.create().apply {
-                url = "$apiUrl/reader/${item.id}".toHttpUrl()
+                this.url = "$apiUrl/reader/${item.id}"
                 title = item.title
                 thumbnail_url = item.thumbnail
                 description = item.excerpt
@@ -90,7 +90,7 @@ abstract class MegaBanana : KeiSource() {
         fetchDetails: Boolean,
         fetchChapters: Boolean,
     ): SMangaUpdate {
-        val mangaId = manga.url.pathSegments.last()
+        val mangaId = manga.url.toHttpUrl().pathSegments.last()
 
         val reader = client.get(
             manga.url,
